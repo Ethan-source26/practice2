@@ -22,7 +22,7 @@ extern "C" {
 static Gm6020 motor_vel(1);   //速度
 static Gm6020 motor_pos(2);   //位置
 
-static Pid pid_vel(100.0f, 200.0f,0.0f, 16384.0f, -16384.0f);
+static Pid pid_vel(200.0f, 450.0f,0.0f, 16384.0f, -16384.0f);
 static Pid pid_pos(0.0f, 0.0f, 0.0f, 16384.0f, -16384.0f);
 
 //正弦曲线参数
@@ -68,8 +68,10 @@ void MainTask(void){
     //速度部分考核
          volatile float v_ref = kVelAmp * sinf(2.0f * kPi * kVelFreq * time_ms);
          volatile float v_fdb = motor_vel.vel();
-         float Fc = 70.0f;
-         float fc = Fc * v_ref / (fabsf(v_ref) + 0.5f);
+         float Fc_pos = 55.0f;
+         float Fc_neg = 70.0f;
+         float fc_amp = (v_ref > 0.0f) ? Fc_pos : Fc_neg;
+         float fc = fc_amp * v_ref / (fabsf(v_ref) + 0.3f);
          volatile float u_vel = pid_vel.calc(v_ref, v_fdb) +31 * v_ref + fc;
          motor_vel.setVoltage(static_cast<int16_t>(u_vel));
          v_ref_trace = v_ref;
