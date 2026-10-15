@@ -22,8 +22,8 @@ extern "C" {
 static Gm6020 motor_vel(1);   //速度
 static Gm6020 motor_pos(2);   //位置
 
-static Pid pid_vel(1000.0f, 0.0f, 0.0f, 25000.0f, -25000.0f);
-static Pid pid_pos(0.0f, 0.0f, 0.0f, 25000.0f, -25000.0f);
+static Pid pid_vel(100.0f, 200.0f,0.0f, 16384.0f, -16384.0f);
+static Pid pid_pos(0.0f, 0.0f, 0.0f, 16384.0f, -16384.0f);
 
 //正弦曲线参数
 static constexpr float kPi        = 3.14159265358979323846f;
@@ -35,6 +35,9 @@ static constexpr float kPosFreq   = 0.2f;
  volatile float v_ref_trace = 0.0f;
  volatile float v_fdb_trace = 0.0f;
  volatile float u_vel_trace = 0.0f;
+ volatile float p_ref_trace = 0.0f;
+ volatile float p_fdb_trace = 0.0f;
+ volatile float u_pos_trace = 0.0f;
 
 static float time_ms = 0.0f;
 
@@ -65,7 +68,9 @@ void MainTask(void){
     //速度部分考核
          volatile float v_ref = kVelAmp * sinf(2.0f * kPi * kVelFreq * time_ms);
          volatile float v_fdb = motor_vel.vel();
-         volatile float u_vel = pid_vel.calc(v_ref, v_fdb);
+         float Fc = 70.0f;
+         float fc = Fc * v_ref / (fabsf(v_ref) + 0.5f);
+         volatile float u_vel = pid_vel.calc(v_ref, v_fdb) +31 * v_ref + fc;
          motor_vel.setVoltage(static_cast<int16_t>(u_vel));
          v_ref_trace = v_ref;
          v_fdb_trace = v_fdb;
@@ -76,13 +81,16 @@ void MainTask(void){
          volatile float theta_fdb = motor_pos.angle();
          float u_pos = pid_pos.calc(theta_ref, theta_fdb);
          motor_pos.setVoltage(static_cast<int16_t>(u_pos));
+         p_ref_trace = theta_ref;
+         p_fdb_trace = theta_fdb;
+         u_pos_trace = u_pos;
 
      uint8_t tx_data[8] = {0};
      motor_vel.encode(tx_data);   // 填充 [0,1]
      motor_pos.encode(tx_data);   // 填充 [2,3]
 
      CAN_TxHeaderTypeDef tx_header = {0};
-     tx_header.StdId = 0x1FF;
+     tx_header.StdId = 0x1FE;
      tx_header.IDE   = CAN_ID_STD;
      tx_header.RTR   = CAN_RTR_DATA;
      tx_header.DLC   = 8;

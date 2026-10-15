@@ -17,7 +17,7 @@ uint32_t Gm6020::rxId() const {
 }
 
 uint32_t Gm6020::txId() const {
-    return (id_ <= 4) ? 0x1FFu : 0x2FFu;   // 电压控制帧
+    return (id_ <= 4) ? 0x1FEu : 0x2FEu;   // 电压控制帧
 }
 
 void Gm6020::decode(const uint8_t *data) {
@@ -58,8 +58,8 @@ int16_t Gm6020::velRpm() const {
 }
 
 void Gm6020::setVoltage(int16_t v) {
-    if (v > 25000)    v = 25000;
-    if (v < -25000)   v = -25000;
+    if (v > 16384)    v = 16384;
+    if (v < -16384)   v = -16384;
     voltage_ = v;
 }
 
