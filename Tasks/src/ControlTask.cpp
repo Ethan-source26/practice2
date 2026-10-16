@@ -23,14 +23,15 @@ static Gm6020 motor_vel(1);   //速度
 static Gm6020 motor_pos(2);   //位置
 
 static Pid pid_vel(200.0f, 450.0f,0.0f, 16384.0f, -16384.0f);
+static Pid pid_pos_ins(200.0f, 450.0f, 0.0f, 16384.0f, 16384.0f);
 static Pid pid_pos(0.0f, 0.0f, 0.0f, 16384.0f, -16384.0f);
 
 //正弦曲线参数
 static constexpr float kPi        = 3.14159265358979323846f;
 static constexpr float kVelAmp    = 10.0f;
 static constexpr float kVelFreq   = 0.5f;
-static constexpr float kPosAmp    = 1.57f;
-static constexpr float kPosFreq   = 0.2f;
+static constexpr float kPosAmp    = 10.0f/kPi;
+static constexpr float kPosFreq   = 0.5f;
 
  volatile float v_ref_trace = 0.0f;
  volatile float v_fdb_trace = 0.0f;
@@ -38,10 +39,10 @@ static constexpr float kPosFreq   = 0.2f;
  volatile float p_ref_trace = 0.0f;
  volatile float p_fdb_trace = 0.0f;
  volatile float u_pos_trace = 0.0f;
+ volatile float v_inr_trace = 0.0f;
+ volatile float v_inf_trace = 0.0f;
 
 static float time_ms = 0.0f;
-
-static uint8_t rx_byte = 0;
 
 void ControlTaskInit(void){
     CAN_FilterTypeDef filter = {0};
@@ -79,10 +80,18 @@ void MainTask(void){
          u_vel_trace = u_vel;
 
     //位置部分考核
-         volatile float theta_ref = kPosAmp * sinf(2.0f * kPi * kPosFreq * time_ms);
+         volatile float theta_ref = kPosAmp * -cosf(2.0f * kPi * kPosFreq * time_ms);
          volatile float theta_fdb = motor_pos.angle();
-         float u_pos = pid_pos.calc(theta_ref, theta_fdb);
+         volatile float v_pos_ref = kVelAmp * sinf(2.0f * kPi * kVelFreq * time_ms);
+         volatile float v_pos_fdb = motor_pos.vel();
+         float Fc_pos = 55.0f;
+         float Fc_neg = 70.0f;
+         float fc_amp = (v_ref > 0.0f) ? Fc_pos : Fc_neg;
+         float fc = fc_amp * v_ref / (fabsf(v_ref) + 0.3f);
+         volatile float u_pos = pid_pos_ins.calc(v_pos_ref,v_pos_fdb) +31 * v_ref + fc +pid_pos.calc(theta_ref,theta_fdb);
          motor_pos.setVoltage(static_cast<int16_t>(u_pos));
+         v_inr_trace = v_pos_ref;
+         v_inf_trace = v_pos_fdb;
          p_ref_trace = theta_ref;
          p_fdb_trace = theta_fdb;
          u_pos_trace = u_pos;
