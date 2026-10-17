@@ -36,6 +36,7 @@ public:
     // ---- 控制 ----
     void setVoltage(int16_t v);   // 电压给定 -25000~+25000
     int16_t voltage() const;
+    bool inited() const;     // 是否已收到首帧反馈
 
     // ---- 协议编解码 ----
     void decode(const uint8_t *data);   // 解析 8 字节反馈帧
@@ -52,6 +53,7 @@ private:
 
     int32_t  full_turns_;     // 累计整圈数 (正转 +1, 反转 -1)
     uint16_t last_raw_angle_; // 上一拍原始角度, 用于跨零检测
+    bool     inited_;         // 首帧标志, 首帧不做跨零判断
 };
 
 #endif // GM6020_H
